@@ -71,7 +71,7 @@ def UCB(representations, taux_clic):
 
     return np.array(list_chosen)
 
-def LinUCB(representations, taux_clic, alpha):
+def linUCB(representations, taux_clic, alpha):
     list_chosen = []
     d = len(representations[0])
     na = len(taux_clic[0])
@@ -79,16 +79,20 @@ def LinUCB(representations, taux_clic, alpha):
     b = [np.zeros((d, 1)) for _ in range(na)]
 
     for iteration in range(len(representations)):
-        x = representations[iteration]
+        x = representations[iteration].reshape((d,1))
+        expected_payoff = []
         for action in range(na):
-            inv_a = np.inv(A[action])
+            inv_a = np.linalg.inv(A[action])
             theta = inv_a.dot(b[action])
-            expected_payoff = theta.T.dot(x) +\
-            alpha * np.sqrt(x.T.dot(inv_a).dot(x))
+            expected_payoff.append(theta.T.dot(x) +\
+             alpha * np.sqrt(x.T.dot(inv_a).dot(x)))
         
-        chosen = np.argmax()
+        chosen = np.argmax(expected_payoff)
+        reward = taux_clic[iteration][chosen]
+        A[chosen] += x.dot(x.T)
+        
+        b[chosen] += x * reward
         list_chosen.append(chosen)
-        scores[chosen].append(line[chosen])
 
     return np.array(list_chosen)
 
@@ -109,8 +113,11 @@ def main():
     annonceurs = len(taux_clic[0])
     baselines(representations, taux_clic)
 
+    static_best_res = static_best_strat(representations, taux_clic)
     res_UCB = UCB(representations, taux_clic)
+    res_linUCB = linUCB(representations, taux_clic, alpha=0.1)
     res_opti = optim_strat(representations, taux_clic)
     
-    plot([res_UCB, res_opti], ["UCB", "opti"], taux_clic)
+    plot([static_best_res, res_UCB, res_linUCB, res_opti], ["static", "UCB", "linUCB", "opti"], taux_clic)
+
 main()
