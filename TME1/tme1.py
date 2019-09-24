@@ -1,5 +1,4 @@
 import numpy as np
-import random
 import matplotlib.pyplot as plt
 
 def read():
@@ -7,8 +6,8 @@ def read():
     taux_clic = []
     with open("CTR.txt") as f:
         for line in f.readlines():
-            num, repr, taux = line.split(':')
-            representations.append(list(map(float, repr.split(';'))))
+            num, repres, taux = line.split(':')
+            representations.append(list(map(float, repres.split(';'))))
             taux_clic.append(list(map(float, taux.split(';'))))
     for l in taux_clic:
         assert len(l)==10, l
@@ -22,11 +21,11 @@ def static_best_strat(representations, taux_clic):
     best = np.argmax(np.sum(taux_clic, axis=0))
     return np.array([best] * len(representations))    
   
-def optim_strat(representations, taux_clic):
+def optim_strat(_representations, taux_clic):
     """strategie qui triche"""
     return np.argmax(taux_clic, axis=1)
 
-def score(res, taux_clic):
+def compute_res_score(res, taux_clic):
     #return taux_clic[:, res].sum()
     s = 0
     for i in range(len(res)):
@@ -45,12 +44,11 @@ def baselines(representations, taux_clic):
         print(res.shape)
         print(res)
         assert res.shape == (n,) 
-        #assert np.all(np.all(0 <= res < annonceurs))
-        print(score(res, taux_clic))
+        assert np.all(np.all((0 <= res) & (res < annonceurs)))
+        print(compute_res_score(res, taux_clic))
         print()
 
-def UCB(representations, taux_clic):
-    n = len(representations)
+def UCB(_representations, taux_clic):
     b = len(taux_clic[0])
     scores = [[] for _ in range(b)]
 
@@ -58,7 +56,6 @@ def UCB(representations, taux_clic):
         return np.mean(score) + np.sqrt(2 * np.log(t) / len(score))
 
     list_chosen = []
-    chosen = None
     for iteration, line in enumerate(taux_clic):
         if iteration < b: # initialisation
             chosen = iteration
@@ -87,7 +84,7 @@ def linUCB(representations, taux_clic, alpha):
             expected_payoff.append(theta.T.dot(x) +\
              alpha * np.sqrt(x.T.dot(inv_a).dot(x)))
         
-        chosen = np.argmax(expected_payoff)
+        chosen = np.argmax(expected_payoff) # type: int
         reward = taux_clic[iteration][chosen]
         A[chosen] += x.dot(x.T)
         
@@ -109,8 +106,7 @@ def plot(list_res, names, taux_clic):
 def main():
     representations, taux_clic = read()
     print(representations.shape)
-    n = len(representations)
-    annonceurs = len(taux_clic[0])
+    _annonceurs = len(taux_clic[0])
     baselines(representations, taux_clic)
 
     static_best_res = static_best_strat(representations, taux_clic)
