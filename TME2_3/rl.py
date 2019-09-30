@@ -187,25 +187,81 @@ class ValueIterationAgent:
         return self.policy[current_state]
 
 
-def _main_demo():
-    env = gym.make("gridworld-v0")
-    env.seed(0)  # Initialise le seed du pseudo-random
-    print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
-    # print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
-    statedic, mdp = env.getMDP()  # recupere le mdp : statedic
-    print("Nombre d'etats:", len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
-    state, transitions = list(mdp.items())[0]
-    print("ex state:", state)  # un etat du mdp
-    print("ex transistions:",
-          transitions)  # dictionnaire des transitions pour l'etat :  {action-> [proba,etat,reward,done]}
+class QLearningAgent:
+    def __init__(self, env, action_space, default, alpha, gamma, eps, cst):
+        # état, action : valeur
+        self.default = default
+        self.q = {}  # todo
+        
+        self.env = env
+        self.last_action = None
+        self.last_state = None
+        self.alpha = alpha
+        self.gamma = gamma
+        self.action_space = action_space
+        self.eps = eps
     
-    # Execution avec un Agent
-    # agent = PolicyIterationAgent(env, mdp.keys(), env.action_space,
-    #                             mdp, env.getMDP()[0], gamma=1-1e-3, cst=-.01)
-    agent = ValueIterationAgent(env, mdp.keys(), env.action_space,
-                                mdp, env.getMDP()[0], gamma=1 - 1e-3, cst=-.01)
-    agent.compute_best_policy()
+    def _updateQ(self, state, action, state2, reward, done):
+        val = self.q.get((state, action), self.default)
+        
+        if done:  # todo à vérifier
+            m = 0
+        else:
+            m = -np.inf
+            for action2 in self.action_space:
+                m = max(m, self.q.get((state2, action2), self.default))
+        
+        val += self.alpha * (reward + self.gamma * m - val)
+        
+        self.q[(state, action)] = val
     
+    def act(self, observation, reward, done):
+        state2 = self.env.state2str(observation)
+        self._updateQ(self.last_state, self.last_action, state2, reward, done)
+        
+        action2 = self.epsilon_greedy(state2, self.eps)
+        
+        self.last_state = state2
+        self.last_action = action2
+        
+        return self.last_action
+    
+    def epsilon_greedy(self, state, eps):
+        if np.random.rand() < eps:
+            return np.random.choice(self.action_space, 1)[0]
+        
+        best_val = -np.inf
+        best_action = None
+        
+        for action in self.action_space:
+            val = self.q.get((state, action), self.default)
+            if val > best_val:
+                best_val = val
+                best_action = action
+        
+        return best_action
+
+
+class SarsaAgent(QLearningAgent):
+    def __init__(self, env, action_space, default, alpha, gamma, eps, cst):
+        super().__init__(env, action_space, default, alpha, gamma, eps, cst)
+    
+    def _updateQ(self, state, action, state2, reward, done):
+        val = self.q.get((state, action), self.default)
+        
+        if done:  # todo à vérifier
+            val += self.alpha * reward
+        else:
+            action2 = self.epsilon_greedy(state, self.eps)
+            val += self.alpha * (reward + self.gamma * self.q.get((state2, action2), self.default) - val)
+        
+        self.q[(state, action)] = val
+    
+
+class DynaQAgent:
+    pass
+
+def _main_demo(env, agent):
     # env.render()  # permet de visualiser la grille du jeu
     env.render(mode="human")  #visualisation sur la console
     
@@ -245,7 +301,6 @@ def _main_perf():
     env = gym.make("gridworld-v0")
     env.seed()
     statedic, mdp = env.getMDP()
-    
     timeP = []
     timeV = []
     n = 3
@@ -276,11 +331,36 @@ def _main_perf():
     
     env.close()
 
-
+def _main_qlearning():
+    pass
+    
 def main():
-    _main_demo()
-    _main_perf()
+    env = gym.make("gridworld-v0")
+    env.seed(0)  # Initialise le seed du pseudo-random
+    print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
+    # print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
+    statedic, mdp = env.getMDP()  # recupere le mdp : statedic
+    print("Nombre d'etats:", len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
+    state, transitions = list(mdp.items())[0]
+    print("ex state:", state)  # un etat du mdp
+    print("ex transistions:",
+          transitions)  # dictionnaire des transitions pour l'etat :  {action-> [proba,etat,reward,done]}
     
+    # Execution avec un Agent
+    # agent = PolicyIterationAgent(env, mdp.keys(), env.action_space,
+    #                             mdp, env.getMDP()[0], gamma=1-1e-3, cst=-.01)
+    # agent = ValueIterationAgent(env, mdp.keys(), env.action_space,
+    #                             mdp, env.getMDP()[0], gamma=1 - 1e-3, cst=-.01)
     
+    # agent = QLearningAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
+    
+    agent = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
+    
+    _main_demo(env, agent)
+    
+    # _main_perf()
+
+
 if __name__ == '__main__':
     main()
+
