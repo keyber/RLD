@@ -2,23 +2,23 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import gym
-import gridworld
-from gym import wrappers, logger
+from gym import wrappers
 import numpy as np
-import copy
+# noinspection PyUnresolvedReferences
+import gridworld # import non utilisé ensuite mais nécessaire
 
 
-class RandomAgent(object):
+class RandomAgent:
     """The world's simplest agent!"""
     def __init__(self, action_space):
         self.action_space = action_space
 
-    def act(self, observation, reward, done):
+    def act(self, _observation, _reward, _done):
         return self.action_space.sample()
 
 
-class PolicyIterationAgent():
-    def __init__(self, env, state_space, action_space, p, obs_to_states, gamma=.99):
+class PolicyIterationAgent:
+    def __init__(self, env, state_space, action_space, p, obs_to_states, gamma=.99, cst=-.1):
         # initialisation de la politique aléatoirement
         self.policy = {state: action_space.sample() for state in state_space}
 
@@ -28,29 +28,31 @@ class PolicyIterationAgent():
         self.state_space = state_space
         self.p = p
         self.gamma = gamma
+        self.cst = cst
         self.obs_to_states = obs_to_states
         self.env = env
     
     def get_state_values_from_policy(self, eps=1e-3):
         current_state_values = self.state_values
         new_state_values = {}
-
+        
         diff = eps
         while diff >= eps:
             diff = 0
 
             for state in self.state_space:
-                s = 0
+                state_value = self.cst
+                
                 for proba, state2, reward, done in self.p[state][self.policy[state]]:
                     val = reward
                     if not done:
                         val += self.gamma * current_state_values[state2]
                     val *= proba
 
-                    s +=  val
+                    state_value +=  val
                 
-                diff += (s - current_state_values[state]) ** 2
-                new_state_values[state] = s
+                diff += (state_value - current_state_values[state]) ** 2
+                new_state_values[state] = state_value
             
             diff = np.sqrt(diff)
             current_state_values = new_state_values
@@ -61,7 +63,8 @@ class PolicyIterationAgent():
         new_policy = {}
         for state in self.state_space:
             best_action = None
-            max_value = -np.inf 
+            max_value = -np.inf
+
             for action in self.p[state].keys():
                 s = 0
                 for proba, state2, reward, done in self.p[state][action]:
@@ -95,29 +98,30 @@ class PolicyIterationAgent():
             
             self.policy = new_policy
 
-    def act(self, observation, reward, done):
+    def act(self, observation, _reward, _done):
         current_state = self.env.state2str(observation)
         return self.policy[current_state]
 
 
-if __name__ == '__main__':
+def main():
     env = gym.make("gridworld-v0")
     env.seed(0)  # Initialise le seed du pseudo-random
-    print(env.action_space)  # Quelles sont les actions possibles
-    print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
-    env.render()  # permet de visualiser la grille du jeu 
-    env.render(mode="human") #visualisation sur la console
+    print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
+    # print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
     statedic, mdp = env.getMDP()  # recupere le mdp : statedic
-    print("Nombre d'etats : ",len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
+    print("Nombre d'etats:",len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
     state, transitions = list(mdp.items())[0]
-    print(state)  # un etat du mdp
-    print(transitions)  # dictionnaire des transitions pour l'etat :  {action-> [proba,etat,reward,done]}
-
+    print("ex state:", state)  # un etat du mdp
+    print("ex transistions:", transitions)  # dictionnaire des transitions pour l'etat :  {action-> [proba,etat,reward,done]}
+    
     # Execution avec un Agent
-    #agent = RandomAgent(env.action_space)
-    agent = PolicyIterationAgent(env, env.getMDP()[0].values(), env.action_space,
-                                env.getMDP()[1], env.getMDP()[0], gamma=.99)
-
+    agent = PolicyIterationAgent(env, mdp.keys(), env.action_space,
+                                mdp, env.getMDP()[0], gamma=1-1e-3, cst=-.01)
+    agent.compute_best_policy()
+    
+    # env.render()  # permet de visualiser la grille du jeu
+    env.render(mode="human") #visualisation sur la console
+    
     # Faire un fichier de log sur plusieurs scenarios
     outdir = 'gridworld-v0/random-agent-results'
     envm = wrappers.Monitor(env, directory=outdir, force=True, video_callable=False)
@@ -126,8 +130,8 @@ if __name__ == '__main__':
     episode_count = 1000
     reward = 0
     done = False
-    rsum = 0
-    FPS = 0.0001
+    FPS = 1e-6 # ~temps de pause entre deux affichages
+    assert FPS > 0
     for i in range(episode_count):
         obs = envm.reset()
         env.verbose = (i % 100 == 0 and i > 0)  # afficher 1 episode sur 100
@@ -148,3 +152,6 @@ if __name__ == '__main__':
 
     print("done")
     env.close()
+
+if __name__ == '__main__':
+    main()
