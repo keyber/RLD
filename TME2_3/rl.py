@@ -241,7 +241,7 @@ class QLearningAgent:
             if val > best_val:
                 best_val = val
                 best_action = action
-        
+
         return best_action
 
 
@@ -299,7 +299,8 @@ class DynaQAgent(QLearningAgent):
                     m = max(m, self.q.get((s2, a2), self.default))
 
                 # todo à vérifier (je ne sais pas si les parenthèses sont bien placées dans le slide)
-                sum += val_p * (val_r + self.gamma * m) - val_q
+                # avec val_p * (val_r + self.gamma * m) - val_q (comme sur le slide), les valeurs explosent
+                sum += val_p * (val_r + self.gamma * m - val_q)
 
             self.q[(s, a)] = val_q + self.alpha * sum
 
