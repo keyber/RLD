@@ -4,25 +4,25 @@ from torch.optim import Adam
 import numpy as np
 import copy
 
+
 class DQN_Agent:
-    def __init__(self, env, action_space, sizeIn, sizeOut, T, C, eps, replay_memory_max_len, batch_size, gamma, phi):
+    def __init__(self, env, action_space, sizeIn, sizeOut, C, eps, replay_memory_max_len, replay_memory_n, gamma, phi):
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
         self.replay_memory = np.empty(replay_memory_max_len, dtype=object)
         self.replay_memory_ind = 0
-        self.T = T
         self.eps = eps
-        self.batch_size = batch_size
+        self.replay_memory_n = replay_memory_n
         self.gamma = gamma
 
         self.action_space = action_space
-        self.Q = NN(self.sizeIn, self.sizeOut)
+        self.Q = NN(self.sizeIn, self.sizeOut, [8, 8]).float()
         self.Q_old = copy.deepcopy(self.Q)
         self.phi = phi
-        self.optim = Adam(self.Q.parameters())
+        self.optim = Adam(self.Q.parameters(), lr=1e-5)
+        self.loss = nn.SmoothL1Loss()
         
         self.episode = 0
-        self.t = 0
         self.c = 0
         self.C = C
         self.last_phi_state = None
@@ -30,33 +30,42 @@ class DQN_Agent:
         
         self.env = env
         
-        
     
     def _update(self, observation, reward, done):
-        s2 = self.env.state2str(observation)
+        s2 = torch.tensor(observation)
         phi2 = self.phi(s2)
         
-        # save
-        self.replay_memory[self.replay_memory_ind % len(self.replay_memory)] = None
-        self.replay_memory[self.replay_memory_ind % len(self.replay_memory)] = (self.last_phi_state, self.last_action, reward, phi2, done)
-        self.replay_memory_ind += 1
-        
-        # sample for experience replay
-        els = np.random.choice(range(min(self.replay_memory_ind, len(self.replay_memory)), self.batch_size))
-        l = self.replay_memory[els]
-        print(l)
-        (phi, a, r, phi2, d) = map(torch.Tensor, zip(*l))
-        
-        # gradient descent
-        self.optim.zero_grad()
-        phi2 = phi2.detach()
-        y_true = torch.where(d, r, r + self.gamma * torch.max(self.Q_old(phi2), dim=1))
-        y_pred =  self.Q(phi)
-        assert y_true.requires_grad == False
-        assert y_pred.requires_grad == True
-        loss = nn.SmoothL1Loss(y_true - y_pred)
-        loss.backward()
-        self.optim.step()
+        # ne sauvegarde rien à la première action
+        if self.last_phi_state is not None:
+            # save
+            self.replay_memory[self.replay_memory_ind % len(self.replay_memory)] =(
+                self.last_phi_state,
+                torch.tensor([self.last_action]),
+                torch.tensor([reward]),
+                phi2,
+                torch.tensor([done], dtype=torch.bool))
+            self.replay_memory_ind += 1
+            
+            # sample for experience replay
+            els = np.random.choice(range(min(self.replay_memory_ind, len(self.replay_memory))),
+                                   min(self.replay_memory_ind, self.replay_memory_n))
+            l = self.replay_memory[els]
+            (lphi, la, lr, lphi2, ld) = map(torch.stack, zip(*l))
+            la = la.squeeze(1)
+            lr = lr.squeeze(1)
+            ld = ld.squeeze(1)
+            # gradient descent
+            self.optim.zero_grad()
+            phi2 = phi2.detach()
+            y_true = torch.where(ld, lr, lr + self.gamma * torch.max(self.Q_old(lphi2), dim=1)[0]) #max retourne (max, argmax)
+            y_pred = self.Q(lphi)[range(len(lphi)), la] # advanced indexing (différent de [:, la])
+            assert y_true.requires_grad == True
+            y_true = y_true.detach()
+            y_true.requires_grad = False
+            assert y_pred.requires_grad == True
+            loss = self.loss(y_pred, y_true)
+            loss.backward()
+            self.optim.step()
 
         self.last_phi_state = phi2
         
@@ -77,16 +86,17 @@ class DQN_Agent:
         else:
             state_representation = self.last_phi_state
             action_scores = self.Q(state_representation)
-            a = np.argmax(action_scores)
+            # print(state_representation)
+            # print(action_scores)
+            # print()
+            a = np.argmax(action_scores.detach().numpy())
         
         self.last_action = a
         return a
-            
-            
-                
+
 
 class NN(nn.Module):
-    def __init__(self, inSize, outSize, layers=[]):
+    def __init__(self, inSize, outSize, layers):
         super(NN, self).__init__()
         self.layers = nn.ModuleList([])
         for x in layers:
@@ -94,9 +104,9 @@ class NN(nn.Module):
             inSize = x
         self.layers.append(nn.Linear(inSize, outSize))
     def forward(self, x):
-        x = self.layers[0](x)
+        x = self.layers[0](x.float())
         for i in range(1, len(self.layers)):
-            x = nn.functional.leaky_relu(x)
+            x = nn.functional.leaky_relu(x).float()
             x = self.layers[i](x)
         return x
     

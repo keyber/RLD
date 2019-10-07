@@ -1,7 +1,12 @@
 import gym
 from gym import wrappers
-from rl import SarsaAgent, QLearningAgent, ValueIterationAgent, DynaQAgent, PolicyIterationAgent
+from knownMDP import ValueIterationAgent, PolicyIterationAgent
+from qlearning import SarsaAgent, QLearningAgent, DynaQAgent
 from DQN import DQN_Agent
+import matplotlib
+matplotlib.use("TkAgg")
+# noinspection PyUnresolvedReferences
+import gridworld # import non utilisé ensuite mais nécessaire
 
 
 def _main_demo(env, agent):
@@ -104,8 +109,7 @@ def main():
     sizeIn = 4 #=len(env.state) #=len(phi(x))
     action_space = [0, 1]
     sizeout = len(action_space)
-    agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10 ,C=10, eps=1e-2, replay_memory_max_len=10, batch_size=8, gamma=1 - 1e-1, phi=identity)
-    # (self, env, action_space, sizeIn, sizeOut, T, C, eps, replay_memory_max_len, batch_size, gamma)
+    agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
     _main_demo(env, agent)
     
     # _main_perf()
