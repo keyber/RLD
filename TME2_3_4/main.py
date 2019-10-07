@@ -1,6 +1,8 @@
-from rl import SarsaAgent, QLearningAgent, ValueIterationAgent, DynaQAgent, PolicyIterationAgent
 import gym
 from gym import wrappers
+from rl import SarsaAgent, QLearningAgent, ValueIterationAgent, DynaQAgent, PolicyIterationAgent
+from DQN import DQN_Agent
+
 
 def _main_demo(env, agent):
     # env.render()  # permet de visualiser la grille du jeu
@@ -45,6 +47,7 @@ def _main_perf():
     statedic, mdp = env.getMDP()
     timeP = []
     timeV = []
+    n = 3
     list_gamma = [1 - 1e-1, 1 - 1e-3]
     list_cst = [0, 1e-3, 1e-1]
     for gamma in list_gamma:
@@ -72,10 +75,8 @@ def _main_perf():
     
     env.close()
 
-
-def _main_qlearning():
-    pass
-
+def identity(x):
+    return x
 
 def main():
     env = gym.make("gridworld-v0")
@@ -96,9 +97,15 @@ def main():
     #                             mdp, env.getMDP()[0], gamma=1 - 1e-3, cst=-.01)
     
     # agent = QLearningAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
-    
-    agent = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1 - 1e-1, eps=.1, cst=-.01)
-    
+    # agent = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
+    agent = DynaQAgent(env, list(mdp[state].keys()), mdp.keys(), default=0, alpha=.5, gamma=1 - 1e-1, eps=.1,
+                       alpha_R=0.5, alpha_P=0.5, k=5)
+    phi = identity
+    sizeIn = 4 #=len(env.state) #=len(phi(x))
+    action_space = [0, 1]
+    sizeout = len(action_space)
+    agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10 ,C=10, eps=1e-2, replay_memory_max_len=10, batch_size=8, gamma=1 - 1e-1, phi=identity)
+    # (self, env, action_space, sizeIn, sizeOut, T, C, eps, replay_memory_max_len, batch_size, gamma)
     _main_demo(env, agent)
     
     # _main_perf()
@@ -106,4 +113,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
