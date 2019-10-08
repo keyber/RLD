@@ -81,7 +81,7 @@ def main_acrobot():
                        loss=torch.nn.MSELoss(),
                        C=10, eps=1.0, eps_decay=.99, replay_memory_max_len=1000,
                        replay_memory_n=100, gamma=1 - 1e-1, phi=identity)
-
+    
     outdir = 'Acrobot-v1/random-agent-results'
     loop(env, agent, outdir)
 
@@ -103,7 +103,26 @@ def main_mountainCar():
     outdir = 'MountainCar-v0/random-agent-results'
     loop(env, agent, outdir)
 
+def main_lunarlander():
+    env = gym.make('LunarLander-v2')
+    # Enregistrement de l'Agent
+
+    sizeIn = env.observation_space.shape[0]
+    sizeOut = env.action_space.n
+    Q = NN(sizeIn, sizeOut, [24, 24])
+    optim = Adam(Q.parameters(), lr=1e-3)
+    agent = DQN_Agent(env, range(env.action_space.n),
+                       Q=Q,
+                       optim=optim,
+                       loss=torch.nn.MSELoss(),
+                       C=10, eps=1.0, eps_decay=.99, replay_memory_max_len=1000,
+                       replay_memory_n=100, gamma=1 - 1e-1, phi=identity)
+    
+    outdir = 'MountainCar-v0/random-agent-results'
+    loop(env, agent, outdir)
+
 if __name__ == '__main__':
     # main_cartPole()
     # main_acrobot()
-    main_mountainCar()
+    # main_mountainCar()
+    main_lunarlander()

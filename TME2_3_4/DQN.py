@@ -40,7 +40,7 @@ class DQN_Agent:
             self.replay_memory[self.replay_memory_ind % len(self.replay_memory)] =(
                 self.last_phi_state,
                 torch.tensor([self.last_action]),
-                torch.tensor([reward]),
+                torch.tensor([reward], dtype=torch.float),
                 phi2,
                 torch.tensor([done], dtype=torch.bool))
             self.replay_memory_ind += 1
