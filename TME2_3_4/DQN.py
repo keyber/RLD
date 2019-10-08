@@ -1,26 +1,25 @@
 import torch
 from torch import nn
-from torch.optim import Adam
 import numpy as np
 import copy
 
 
 class DQN_Agent:
-    def __init__(self, env, action_space, sizeIn, sizeOut, C, eps, replay_memory_max_len, replay_memory_n, gamma, phi):
-        self.sizeIn = sizeIn
-        self.sizeOut = sizeOut
+    def __init__(self, env, action_space, Q, optim, loss, C, eps, eps_decay,
+                 replay_memory_max_len, replay_memory_n, gamma, phi):
         self.replay_memory = np.empty(replay_memory_max_len, dtype=object)
         self.replay_memory_ind = 0
         self.eps = eps
+        self.eps_decay = eps_decay
         self.replay_memory_n = replay_memory_n
         self.gamma = gamma
 
         self.action_space = action_space
-        self.Q = NN(self.sizeIn, self.sizeOut, [8, 8]).float()
+        self.Q = Q
         self.Q_old = copy.deepcopy(self.Q)
         self.phi = phi
-        self.optim = Adam(self.Q.parameters(), lr=1e-5)
-        self.loss = nn.SmoothL1Loss()
+        self.optim = optim
+        self.loss = loss
         
         self.episode = 0
         self.c = 0
@@ -54,6 +53,7 @@ class DQN_Agent:
             la = la.squeeze(1)
             lr = lr.squeeze(1)
             ld = ld.squeeze(1)
+            
             # gradient descent
             self.optim.zero_grad()
             phi2 = phi2.detach()
@@ -73,22 +73,16 @@ class DQN_Agent:
     def act(self, observation, reward, done):
         self._update(observation, reward, done)
         
-        # self.t += 1 # fixme t inutilisé ?
-        # if self.t == self.T:
-        #     self.t = 0
-        
         self.c += 1
         if self.c % self.C == 0:
             self.Q_old = copy.deepcopy(self.Q)
-            
+        
+        self.eps *= self.eps_decay
         if np.random.random() < self.eps:
             a = np.random.choice(self.action_space, 1)[0]
         else:
             state_representation = self.last_phi_state
             action_scores = self.Q(state_representation)
-            # print(state_representation)
-            # print(action_scores)
-            # print()
             a = np.argmax(action_scores.detach().numpy())
         
         self.last_action = a
@@ -109,5 +103,3 @@ class NN(nn.Module):
             x = nn.functional.leaky_relu(x).float()
             x = self.layers[i](x)
         return x
-    
-    #todo target.detach()
