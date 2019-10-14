@@ -3,6 +3,7 @@ from gym import wrappers
 from knownMDP import ValueIterationAgent, PolicyIterationAgent
 from qlearning import SarsaAgent, QLearningAgent, DynaQAgent
 from DQN import DQN_Agent
+from A2C import BatchA3C_Agent
 import matplotlib
 matplotlib.use("TkAgg")
 # noinspection PyUnresolvedReferences
@@ -109,7 +110,8 @@ def main():
     sizeIn = 4 #=len(env.state) #=len(phi(x))
     action_space = [0, 1]
     sizeout = len(action_space)
-    agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
+    #agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
+    agent = BatchA3C_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
     _main_demo(env, agent)
     
     # _main_perf()
