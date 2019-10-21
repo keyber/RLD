@@ -122,7 +122,7 @@ def main_lunarlander():
     loop(env, agent, outdir)
 
 if __name__ == '__main__':
-    # main_cartPole()
+    main_cartPole()
     # main_acrobot()
     # main_mountainCar()
-    main_lunarlander()
+    # main_lunarlander()

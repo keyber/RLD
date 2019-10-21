@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 
-class BatchA3C_Agent:
+class BatchA2C_Agent:
     def __init__(self, t_max, env, action_space, state_space, Q, V, optim_v, optim_q, phi, gamma):
         self.t_max = t_max
         self.t = 0
@@ -47,11 +47,11 @@ class BatchA3C_Agent:
                 v = self.V(self.states[i])
                 q = self.Q(self.states[i])
                 a = q - v.expand_as(q)
-                loss_v = torch.log(a[self.actions[i]]) * (R - v)
-                loss_v.backward(create_graph=True)
+                loss_v = torch.nn.SmoothL1Loss()(v, torch.tensor(R))#torch.pow(R - v, 2)
+                loss_v.backward(retain_graph=True)
 
-                loss_a = torch.pow(R - v, 2)
-                loss_a.backward(create_graph=True)
+                loss_a = torch.log(a[self.actions[i]]) * (R - v)
+                loss_a.backward(retain_graph=True)
 
             self.optim_v.step()
             self.optim_q.step()

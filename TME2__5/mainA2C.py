@@ -4,7 +4,7 @@ matplotlib.use("TkAgg")
 import gym
 from gym import wrappers
 import numpy as np
-from A2C import BatchA3C_Agent, NN_Q, NN_V
+from A2C import BatchA2C_Agent, NN_Q, NN_V
 from torch.optim import Adam
 from time import time
 
@@ -58,9 +58,9 @@ def main_cartPole():
     V = NN_V(sizeIn, 1, [24, 24])
     optim_q = Adam(Q.parameters(), lr=1e-4)
     optim_v = Adam(V.parameters(), lr=1e-4)
-    t_max = 10
+    t_max = 50
     
-    agent = BatchA3C_Agent(t_max, env, sizeOut, sizeIn, Q, V, optim_v, optim_q, phi=identity, gamma=.99)
+    agent = BatchA2C_Agent(t_max, env, sizeOut, sizeIn, Q, V, optim_v, optim_q, phi=identity, gamma=.99)
 
     outdir = 'cartpole-v0/random-agent-results'
     loop(env, agent, outdir)
