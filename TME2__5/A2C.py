@@ -37,7 +37,7 @@ class BatchA2C_Agent:
             self.optim_v.zero_grad()
             self.optim_q.zero_grad()
             if done:
-                R = 0
+                R = torch.zeros(1)
             else:
                 R = self.V(self.states[-1])
 
@@ -47,7 +47,7 @@ class BatchA2C_Agent:
                 v = self.V(self.states[i])
                 q = self.Q(self.states[i])
                 a = q - v.expand_as(q)
-                loss_v = torch.nn.SmoothL1Loss()(v, torch.tensor(R))#torch.pow(R - v, 2)
+                loss_v = torch.nn.SmoothL1Loss()(v, R)#torch.pow(R - v, 2)
                 loss_v.backward(retain_graph=True)
 
                 loss_a = torch.log(a[self.actions[i]]) * (R - v)
@@ -85,7 +85,7 @@ class NN_Q(nn.Module):
             self.layers.append(nn.Linear(inSize, x))
             inSize = x
         self.layers.append(nn.Linear(inSize, outSize))
-        self.layers.append(nn.Softmax())
+        self.layers.append(nn.Softmax(dim=0))
 
     def forward(self, x):
         x = self.layers[0](x.float())
