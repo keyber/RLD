@@ -3,17 +3,16 @@ from torch import nn
 import numpy as np
 
 class BatchA3C_Agent:
-    def __init__(self, t_max, env, action_space, state_space, A, V, optim_v, optim_a,
-                 loss_v, loss_a, phi, gamma):
+    def __init__(self, t_max, env, action_space, state_space, Q, V, optim_v, optim_q, phi, gamma):
         self.t_max = t_max
         self.t = 0
 
         self.action_space = action_space
         self.state_space = state_space
-        self.A = A
+        self.Q = Q
         self.V = V
         self.optim_v = optim_v
-        self.optim_a = optim_a
+        self.optim_q = optim_q
 
         self.phi = phi
         self.gamma = gamma
@@ -36,46 +35,51 @@ class BatchA3C_Agent:
 
         if done or self.t == self.t_max:
             self.optim_v.zero_grad()
-            self.optim_a.zero_grad()
+            self.optim_q.zero_grad()
             if done:
                 R = 0
             else:
                 R = self.V(self.states[-1])
 
-            for i in range(self.t-1, 0, -1):
+            for i in range(self.t-2, -1, -1):
                 R = self.rewards[i] + self.gamma * R
 
-                V = self.V(self.states[i])
-                loss_v = torch.log(self.A(self.states[i])[self.actions[i]]) * \
-                        (R - V)
-                loss_v.backward()
+                v = self.V(self.states[i])
+                q = self.Q(self.states[i])
+                a = q - v.expand_as(q)
+                loss_v = torch.log(a[self.actions[i]]) * (R - v)
+                loss_v.backward(create_graph=True)
 
-                loss_a = torch.pow(R - V, 2)
-                loss_a.backward()
+                loss_a = torch.pow(R - v, 2)
+                loss_a.backward(create_graph=True)
 
             self.optim_v.step()
-            self.optim_a.step()
-
+            self.optim_q.step()
+    
+    def _update2(self, done):
+        if done or self.t == self.t_max:
             self.t = 0
             self.rewards = []
             self.states = []
             self.actions = []
 
+
     def act(self, observation, reward, done):
         self._update(observation, reward, done)
-
+        
         state_representation = self.states[-1]
         action_scores = self.Q(state_representation)
         a = np.argmax(action_scores.detach().numpy())
 
+        self._update2(done)
         self.actions.append(a)
 
         return a
 
 
-class NN_A(nn.Module):
+class NN_Q(nn.Module):
     def __init__(self, inSize, outSize, layers):
-        super(NN_A, self).__init__()
+        super(NN_Q, self).__init__()
         self.layers = nn.ModuleList([])
         for x in layers:
             self.layers.append(nn.Linear(inSize, x))
