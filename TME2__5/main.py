@@ -3,7 +3,8 @@ from gym import wrappers
 from knownMDP import ValueIterationAgent, PolicyIterationAgent
 from qlearning import SarsaAgent, QLearningAgent, DynaQAgent
 from DQN import DQN_Agent
-from A2C import BatchA3C_Agent
+#from A2C import BatchA3C_Agent
+from DDPG import DDPG
 import matplotlib
 matplotlib.use("TkAgg")
 # noinspection PyUnresolvedReferences
@@ -17,7 +18,7 @@ def _main_demo(env, agent):
     # Faire un fichier de log sur plusieurs scenarios
     outdir = 'gridworld-v0/random-agent-results'
     envm = wrappers.Monitor(env, directory=outdir, force=True, video_callable=False)
-    env.setPlan("gridworldPlans/plan0.txt", {0: -0.001, 3: 1, 4: 1, 5: -1, 6: -1})
+    #env.setPlan("gridworldPlans/plan0.txt", {0: -0.001, 3: 1, 4: 1, 5: -1, 6: -1})
     env.seed()  # Initialiser le pseudo aleatoire
     episode_count = 1000
     reward = 0
@@ -85,9 +86,9 @@ def identity(x):
     return x
 
 def main():
-    env = gym.make("gridworld-v0")
+    env = gym.make("LunarLanderContinuous-v2")#gridworld-v0")
     env.seed(0)  # Initialise le seed du pseudo-random
-    print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
+    """print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
     # print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
     statedic, mdp = env.getMDP()  # recupere le mdp : statedic
     print("Nombre d'etats:", len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
@@ -111,7 +112,15 @@ def main():
     action_space = [0, 1]
     sizeout = len(action_space)
     #agent = DQN_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
-    agent = BatchA3C_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
+    #agent = BatchA3C_Agent(env, action_space, sizeIn, sizeout, T=10, C=10, eps=1e-2, replay_memory_max_len=10, replay_memory_n=8, gamma=1 - 1e-1, phi=identity)
+    """	
+    
+    #### CONTINU #############
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0] 
+    max_action = float(env.action_space.high[0])
+
+    agent = DDPG(env, state_dim, action_dim, max_action)
     _main_demo(env, agent)
     
     # _main_perf()
