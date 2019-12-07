@@ -93,12 +93,24 @@ def linUCB(representations, taux_clic, alpha):
 
     return np.array(list_chosen)
 
-def plot(list_res, names, taux_clic):
+def plot_gain(list_res, names, taux_clic):
     list_scores = [[taux_clic[i][res[i]] for i in range(len(taux_clic))] for res in list_res]
     scores_cumules = [np.cumsum(score) for score in list_scores]
     
     for score_cumule, name in zip(scores_cumules, names):
         plt.plot(score_cumule, label=name)
+    plt.legend()
+    plt.show()
+
+def plot_regret(dict_res, taux_clic):
+    dict_regret = {}
+    for name, res in dict_res.items():
+        scores = [taux_clic[i][res[i]] for i in range(len(taux_clic))]
+        dict_regret[name] = np.cumsum(scores)
+
+    for name, regret in dict_res.items():
+        dict_regret[name] = dict_regret['static'] - dict_regret[name]
+        plt.plot(dict_regret[name], label=name)
     plt.legend()
     plt.show()
 
@@ -109,11 +121,15 @@ def main():
     _annonceurs = len(taux_clic[0])
     baselines(representations, taux_clic)
 
+    res_random = random_strat(representations, taux_clic)
     static_best_res = static_best_strat(representations, taux_clic)
     res_UCB = UCB(representations, taux_clic)
     res_linUCB = linUCB(representations, taux_clic, alpha=0.1)
     res_opti = optim_strat(representations, taux_clic)
-    
-    plot([static_best_res, res_UCB, res_linUCB, res_opti], ["static", "UCB", "linUCB", "opti"], taux_clic)
+
+    plot_gain([res_random, static_best_res, res_UCB, res_linUCB, res_opti], ["random", "static", "UCB", "linUCB", "opti"], taux_clic)
+    # ne marche pas : regrets négatifs
+    #plot_regret({'random': res_random, 'static': static_best_res, 'UCB': res_UCB, 'linUCB': res_linUCB, 'opti':res_opti},
+    #            taux_clic)
 
 main()

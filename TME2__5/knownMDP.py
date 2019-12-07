@@ -20,7 +20,7 @@ class PolicyIterationAgent:
         self.cst = cst
         self.obs_to_states = obs_to_states
         self.env = env
-    
+
     def _get_state_values_from_policy(self, eps):
         current_state_values = self.state_values
         new_state_values = {}
@@ -98,7 +98,6 @@ class PolicyIterationAgent:
     def act(self, observation, _reward, _done):
         current_state = self.env.state2str(observation)
         return self.policy[current_state]
-
 
 class ValueIterationAgent:
     def __init__(self, env, state_space, _action_space, p, _obs_to_states, gamma=.99, cst=-.1):
