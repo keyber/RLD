@@ -3,7 +3,7 @@ matplotlib.use("TkAgg")
 import gym
 from gym import wrappers
 import numpy as np
-from A2C import BatchA2C_Agent, NN_Q, NN_V
+from A2C import BatchA2C_Agent, NN_Q, NN_V, A2CAgent, ActorCritic
 from torch.optim import Adam
 from time import time
 from torch.utils.tensorboard import SummaryWriter
@@ -63,8 +63,13 @@ def main_cartPole():
     optim_q = Adam(Q.parameters(), lr=1e-4)
     optim_v = Adam(V.parameters(), lr=1e-2)
     t_max = 50
+
+    ac = ActorCritic(sizeIn, sizeOut, 256)
+    ac.float()
+    optimizer = Adam(ac.parameters(), lr=3e-4)
     
     agent = BatchA2C_Agent(t_max, env, sizeOut, sizeIn, Q, V, optim_v, optim_q, gamma=.99)
+    # agent = A2CAgent(t_max, env, sizeOut, ac, optimizer, phi=identity, gamma=.99)
 
     outdir = 'cartpole-v0/random-agent-results'
     loop(env, agent, outdir)
