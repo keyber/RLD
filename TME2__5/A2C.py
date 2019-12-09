@@ -1,81 +1,103 @@
 import torch
 from torch import nn
 import numpy as np
+import torch.optim.lr_scheduler
 
 class BatchA2C_Agent:
-    def __init__(self, t_max, env, action_space, state_space, Q, V, optim_v, optim_q, phi, gamma):
+    def __init__(self, t_max, env, action_space, state_space, Q, V, optim_v, optim_q, gamma):
         self.t_max = t_max
-        self.t = 0
-
+        self._t = 0
+        self.epoch = 0
+        
         self.action_space = action_space
         self.state_space = state_space
         self.Q = Q
         self.V = V
         self.optim_v = optim_v
+        self.scheduler_v = torch.optim.lr_scheduler.ExponentialLR(optim_v, gamma=.999)
         self.optim_q = optim_q
-
-        self.phi = phi
+        
         self.gamma = gamma
-
+        
         self.env = env
         self.rewards = []
         self.states = []
         self.actions = []
-
-    def _update(self, observation, reward, done):
-        s2 = torch.tensor(observation)
-        phi2 = self.phi(s2)
-
-        phi2 = phi2.detach()
-
-        self.states.append(phi2)
-        self.rewards.append(reward)
-
-        self.t += 1
-
-        if done or self.t == self.t_max:
-            self.optim_v.zero_grad()
-            self.optim_q.zero_grad()
-            if done:
-                R = torch.zeros(1)
-            else:
-                R = self.V(self.states[-1])
-
-            for i in range(self.t-2, -1, -1):
-                R = self.rewards[i] + self.gamma * R
-
-                v = self.V(self.states[i])
-                q = self.Q(self.states[i])
-                # a = q  - v.expand_as(q)
-                loss_v = torch.nn.SmoothL1Loss()(v, R)#torch.pow(R - v, 2)
-                loss_v.backward(retain_graph=True)
-
-                # loss_a = torch.log(a[self.actions[i]]) * (R - v)
-                loss_a = torch.log(q[self.actions[i]]) * (R - v)
-                loss_a.backward(retain_graph=True)
-
-            self.optim_v.step()
-            self.optim_q.step()
+        
+        self.last_state = None
+        self.last_action = None
+        
+        self.baseline_loss = torch.nn.SmoothL1Loss()
+        
+    def _update(self, reward, done):    
+        assert (self.last_state is None) == (reward is None)
     
-    def _update2(self, done):
-        if done or self.t == self.t_max:
-            self.t = 0
+        if reward is not None:
+            self.states.append(self.last_state)
+            self.actions.append(self.last_action)
+            self.rewards.append(reward)
+            
+            self._t += 1
+        
+        if done or self._t == self.t_max:
+            losses = self._update_weights(done)
+            
+            self._t = 0
             self.rewards = []
             self.states = []
             self.actions = []
-
-
-    def act(self, observation, reward, done):
-        self._update(observation, reward, done)
         
-        state_representation = self.states[-1]
-        action_scores = self.Q(state_representation)
-        a = np.argmax(action_scores.detach().numpy())
+            return losses
+        
+        return None
 
-        self._update2(done)
-        self.actions.append(a)
-
-        return a
+    def _update_weights(self, done):
+        loss_v = 0
+        loss_q = 0
+        
+        self.optim_v.zero_grad()
+        self.optim_q.zero_grad()
+    
+        if done:
+            R = torch.zeros(1)
+        else:
+            R = self.V(self.states[-1])
+    
+        for i in range(self._t - 1, -1, -1):
+            R = self.rewards[i] + self.gamma * R
+        
+            v = self.V(self.states[i])
+            q = self.Q(self.states[i])
+            advantage = R - v
+            # print(i, "%.2f"%R.item(), "%.2f"%v, "%.2f"%advantage.item())
+        
+            loss_v += self.baseline_loss(v, R)
+        
+            loss_q -= torch.log(q[self.actions[i]]) * advantage
+        
+        # print()
+        loss_tot = loss_q + loss_v
+        loss_tot.backward()
+    
+        self.optim_v.step()
+        self.optim_q.step()
+        self.scheduler_v.step(self.epoch)
+        self.epoch += 1
+        
+        return {"loss_q":loss_q.item(), "loss_v":loss_v.item()}
+    
+    
+    def act(self, state, reward, done):
+        losses = self._update(reward, done)
+        
+        state = torch.tensor(state)
+        
+        action_scores = self.Q(state)
+        action = np.argmax(action_scores.detach().numpy())
+        
+        self.last_state = state
+        self.last_action = action
+        return action, losses
 
 
 class NN_Q(nn.Module):
