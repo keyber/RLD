@@ -46,11 +46,12 @@ class BatchA2C_Agent:
 
                 v = self.V(self.states[i])
                 q = self.Q(self.states[i])
-                a = q - v.expand_as(q)
+                # a = q  - v.expand_as(q)
                 loss_v = torch.nn.SmoothL1Loss()(v, R)#torch.pow(R - v, 2)
                 loss_v.backward(retain_graph=True)
 
-                loss_a = torch.log(a[self.actions[i]]) * (R - v)
+                # loss_a = torch.log(a[self.actions[i]]) * (R - v)
+                loss_a = torch.log(q[self.actions[i]]) * (R - v)
                 loss_a.backward(retain_graph=True)
 
             self.optim_v.step()

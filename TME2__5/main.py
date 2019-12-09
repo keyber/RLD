@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from time import time
 from scipy.interpolate import make_interp_spline, BSpline
 
-EPISODE_COUNT = 500
+EPISODE_COUNT = 1000
 
 def _main_demo(env, agent, name, plan_id):
     # env.render()  # permet de visualiser la grille du jeu
@@ -46,15 +46,15 @@ def _main_demo(env, agent, name, plan_id):
             if env.verbose:
                 env.render(FPS)
             if done:
-                # print("Episode : " + str(i) + " rsum=" + str(rsum) + ", " + str(j) + " actions")
+                print("Episode : " + str(i) + " rsum=" + str(rsum) + ", " + str(j) + " actions")
                 all_rsums.append(rsum)
                 break
     
-    # print("done")
+    print("done")
     print("Average rsum : {} +/- {}".format(np.mean(all_rsums), np.std(all_rsums)))
     env.close()
 
-def _main_learning_curve(env, agent, name, plan_id):
+def get_learning_curve(env, agent, name, plan_id):
     env.render(mode="human")  # visualisation sur la console
     outdir = 'gridworld-v0-{}/{}-results'.format(plan_id, name)
 
@@ -63,24 +63,66 @@ def _main_learning_curve(env, agent, name, plan_id):
     reward = 0
     done = False
 
-    episode_durations = []
+    all_rewards = []
+
+    print("Running {} :".format(name))
 
     for i in range(episode_count):
         obs = envm.reset()
         rsum = 0
-        start = time()
+        j = 0
         while True:
             action = agent.act(obs, reward, done)
             obs, reward, done, _ = envm.step(action)
             rsum += reward
+            j += 1
             if done:
+                if i % 100 == 0:
+                    print("Episode : " + str(i) + " rsum=" + str(rsum) + ", " + str(j) + " actions")
                 break
-        stop = time()
-        episode_durations.append(stop - start)
+        all_rewards.append(rsum)
 
     env.close()
-    return episode_durations
+    return np.cumsum(all_rewards)
 
+def _main_learning_curve():
+    env = gym.make("gridworld-v0")
+    plan_id = "10"
+    env.seed(0)  # Initialise le seed du pseudo-random
+    env.setPlan("gridworldPlans/plan{}.txt".format(plan_id), {0: -0.001, 3: 1, 4: 1, 5: -1, 6: -1})
+
+    statedic, mdp = env.getMDP()  # recupere le mdp : statedic
+    state, transitions = list(mdp.items())[0]
+
+    agent_random = RandomAgent(env.action_space)
+    agent_qlearning = QLearningAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1)
+    agent_sarsa = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
+    agent_dynaq = DynaQAgent(env, list(mdp[state].keys()), mdp.keys(), default=0, alpha=.5, gamma=1 - 1e-1, eps=.1,
+                        alpha_R=0.5, alpha_P=0.5, k=5)
+
+    learning_curve_random = get_learning_curve(env, agent_random, "random-agent", plan_id)
+    learning_curve_qlearning = get_learning_curve(env, agent_qlearning, "qlearning-agent", plan_id)
+    learning_curve_sarsa = get_learning_curve(env, agent_sarsa, "sarsa-agent", plan_id)
+    learning_curve_dynaq = get_learning_curve(env, agent_dynaq, "dynaq-agent", plan_id)
+
+    plt.plot(learning_curve_random, label="random", color="black")
+    plt.plot(learning_curve_qlearning, label="qlearning", color="blue")
+    plt.plot(learning_curve_sarsa, label="sarsa", color="green")
+    plt.plot(learning_curve_dynaq, label="dyna-Q", color="red")
+
+    plt.xlabel("Episode")
+    plt.ylabel("Cumulative reward")
+    plt.legend()
+    plt.show()
+
+    plt.plot(learning_curve_qlearning, label="qlearning", color="blue")
+    plt.plot(learning_curve_sarsa, label="sarsa", color="green")
+    plt.plot(learning_curve_dynaq, label="dyna-Q", color="red")
+
+    plt.xlabel("Episode")
+    plt.ylabel("Cumulative reward")
+    plt.legend()
+    plt.show()
 
 def _main_perf():
     env = gym.make("gridworld-v0")
@@ -127,8 +169,8 @@ def main():
     # agent_name = "value-agent"
     plan_id = "0"
 
-    env.seed()  # Initialise le seed du pseudo-random
-    env.setPlan("gridworldPlans/plan{}.txt".format(plan_id), {0: -0.001, 3: 1, 4: 1, 5: -1, 6: -1})
+    env.seed(0)  # Initialise le seed du pseudo-random
+    # env.setPlan("gridworldPlans/plan{}.txt".format(plan_id), {0: -0.001, 3: 1, 4: 1, 5: -1, 6: -1})
 
     # print("actions possibles:", env.action_space)  # Quelles sont les actions possibles
     # print(env.step(1))  # faire action 1 et retourne l'observation, le reward, et un done un booleen (jeu fini ou pas)
@@ -136,6 +178,7 @@ def main():
     statedic, mdp = env.getMDP()  # recupere le mdp : statedic
     # print("Nombre d'etats:", len(statedic))  # nombre d'etats ,statedic : etat-> numero de l'etat
     state, transitions = list(mdp.items())[0]
+    print(env.action_space)
 
     # print("ex state:", state)  # un etat du mdp
     # print("ex transistions:",
@@ -150,11 +193,12 @@ def main():
 
     # agent.compute_best_policy(eps=1e-15)
 
-    agent_random = RandomAgent(env.action_space)
-    agent_qlearning = QLearningAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1)
-    agent_sarsa = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
-    agent_dynaq = DynaQAgent(env, list(mdp[state].keys()), mdp.keys(), default=0, alpha=.5, gamma=1 - 1e-1, eps=.1,
-                        alpha_R=0.5, alpha_P=0.5, k=5)
+    # agent_random = RandomAgent(env.action_space)
+    # agent_qlearning = QLearningAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1)
+    # agent_sarsa = SarsaAgent(env, list(mdp[state].keys()), default=0, alpha=.5, gamma=1-1e-1, eps=.1, cst=-.01)
+    # agent_dynaq = DynaQAgent(env, list(mdp[state].keys()), mdp.keys(), default=0, alpha=.5, gamma=1 - 1e-1, eps=.1,
+    #                     alpha_R=0.5, alpha_P=0.5, k=5)
+
     # phi = identity
     # sizeIn = 4 #=len(env.state) #=len(phi(x))
     # action_space = [0, 1]
@@ -171,18 +215,6 @@ def main():
 
     #_main_demo(env, agent, agent_name, plan_id)
     # _main_perf()
-    learning_curve_random = _main_learning_curve(env, agent_random, "random-agent", plan_id)
-
-    learning_curve_qlearning = _main_learning_curve(env, agent_qlearning, "qlearning-agent", plan_id)
-    # learning_curve_sarsa = _main_learning_curve(env, agent_sarsa, "sarsa-agent", plan_id)
-    # learning_curve_dynaq = _main_learning_curve(env, agent_dynaq, "dynaq-agent", plan_id)
-
-    plt.plot(learning_curve_random, label="random")
-    plt.plot(learning_curve_qlearning, label="qlearning")
-    # plt.plot(learning_curve_sarsa)
-    # plt.plot(learning_curve_dynaq)
-    plt.legend()
-    plt.show()
 
 
 if __name__ == '__main__':
