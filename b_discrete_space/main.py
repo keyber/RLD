@@ -1,10 +1,8 @@
 import gym
 from gym import wrappers
-from knownMDP import ValueIterationAgent, PolicyIterationAgent, RandomAgent
-from qlearning import SarsaAgent, QLearningAgent, DynaQAgent
-from DQN import DQN_Agent
+from b_discrete_space.agentKnownMDP import ValueIterationAgent, PolicyIterationAgent, RandomAgent
+from b_discrete_space.qlearning import SarsaAgent, QLearningAgent, DynaQAgent
 #from A2C import BatchA3C_Agent
-from DDPG import DDPG
 import matplotlib
 matplotlib.use("TkAgg")
 # noinspection PyUnresolvedReferences
@@ -12,7 +10,6 @@ import gridworld # import non utilisé ensuite mais nécessaire
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
-from scipy.interpolate import make_interp_spline, BSpline
 
 EPISODE_COUNT = 1000
 
@@ -27,8 +24,7 @@ def _main_demo(env, agent, name, plan_id):
     reward = 0
     done = False
     FPS = 1e-6  # ~temps de pause entre deux affichages
-    assert FPS > 0
-
+    
     all_rsums = []
 
     for i in range(episode_count):
