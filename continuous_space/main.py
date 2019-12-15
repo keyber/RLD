@@ -3,7 +3,8 @@ matplotlib.use("TkAgg")
 import gym
 from gym import wrappers
 import numpy as np
-import A2C
+import agentA2C
+from torch import nn
 from torch.optim import Adam
 from time import time, sleep
 from torch.utils.tensorboard import SummaryWriter
@@ -43,7 +44,6 @@ def loop(env, agent, outdir):
             
             rsum += reward
             if env.verbose:
-                # print(obs)
                 print("%.2f"%state_score.item(), (actions_scores.data.detach().numpy()*10).astype(int)/10)
                 env.render()
                 sleep(1.)
@@ -63,31 +63,18 @@ def loop(env, agent, outdir):
 
 def main_cartPole():
     env = gym.make('CartPole-v1')
-    # Enregistrement de l'Agent
-
+    env.render()
     sizeIn = env.observation_space.shape[0]     #4  = len(phi(x)) #cart_pos, cart_spe, pole_pos, pos_spe
     sizeOut = env.action_space.n                #[0, 1] # gauche droite
-    # Q = NN_Q(sizeIn, sizeOut, [24, 24])
-    # Q = A2C.NN_Q(sizeIn, sizeOut, [100, 100])
-    Q = A2C.NN_state(sizeIn, sizeOut, [24, 24])
-    V = A2C.NN_V(sizeIn, 1, [24, 24])
+    Q = agentA2C.NN_Q(sizeIn, sizeOut, [24, 24]) #type: nn.Module
+    V = agentA2C.NN_V(sizeIn, 1, [24, 24])       #type: nn.Module
     optim_q = Adam(Q.parameters(), lr=1e-2)
     optim_v = Adam(V.parameters(), lr=1e-2)
     t_max = 5000
-
-    # ac = ActorCritic(sizeIn, sizeOut, 256)
-    # ac.float()
-    # optimizer = Adam(ac.parameters(), lr=3e-4)
-    
-    # agent = A2C.BatchA2C_Agent(t_max, env, sizeOut, sizeIn, Q, V, optim_v, optim_q, gamma=.99)
-    
-    # agent = A2CAgent(t_max, env, sizeOut, ac, optimizer, phi=identity, gamma=.99)
+    agent = agentA2C.BatchA2C_Agent(t_max, sizeOut, sizeIn, Q, V, optim_v, optim_q, gamma=.99)
     
     
-    agent = A2C.A2C_Agent_Model_Based(t_max, env, sizeOut, sizeIn, Q, V, optim_v, optim_q, gamma=.99)
-    
-    
-    outdir = 'cartpole-v0/random-agent-results'
+    outdir = 'cartpole/A2C'
     loop(env, agent, outdir)
 
 
