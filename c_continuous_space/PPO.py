@@ -22,7 +22,7 @@ class Memory:
 
 class ActorCritic(nn.Module):
     def __init__(self, state_dim, action_dim, n_latent_var):
-        super(ActorCritic, self).__init__()
+        super().__init__()
         
         # actor
         self.action_layer = nn.Sequential(
@@ -127,13 +127,13 @@ class PPO:
         
 def main():
     ############## Hyperparameters ##############
-    env_name = "LunarLander-v2"
+    env_name = "CartPole-v1"
     # creating environment
     env = gym.make(env_name)
     state_dim = env.observation_space.shape[0]
-    action_dim = 4
+    action_dim = env.action_space.n
     #render = True
-    solved_reward = 230         # stop training if avg_reward > solved_reward
+    solved_reward = 400         # stop training if avg_reward > solved_reward
     log_interval = 20           # print avg reward in the interval
     max_episodes = 50000        # max training episodes
     max_timesteps = 300         # max timesteps in one episode
