@@ -2,9 +2,15 @@ import itertools
 import random
 import numpy as np
 
+default = 0
+lr = .5
+gamma = .99
+eps = 1.
+eps_decay = .999
+lr_decay = .9995
 
 class QLearningAgent:
-    def __init__(self, action_space, default=0, lr=.5, gamma=.99, eps=1., eps_decay=1.):
+    def __init__(self, action_space):
         self.default = default
         self.q = {}  # état, action : valeur
         
@@ -15,6 +21,7 @@ class QLearningAgent:
         self.action_space = action_space
         self.eps = eps
         self.eps_decay = eps_decay
+        self.lr_decay = lr_decay
     
     def _updateQ(self, state, action, state2, reward, done):
         val = self.q.get((state, action), self.default)
@@ -38,13 +45,14 @@ class QLearningAgent:
     def get_result(self, state, reward, done):
         self._updateQ(self.last_state, self.last_action, state, reward, done)
         self.eps *= self.eps_decay
+        self.lr *= self.lr_decay
         self.last_state = state
     
     def reset(self, state):
         self.last_state = state
     
-    def epsilon_greedy(self, state, eps):
-        if np.random.rand() < eps:
+    def epsilon_greedy(self, state, eps_):
+        if np.random.rand() < eps_:
             return np.random.choice(self.action_space, 1)[0]
         
         best_val = -np.inf
@@ -64,8 +72,8 @@ class QLearningAgent:
 
 
 class SarsaAgent(QLearningAgent):
-    def __init__(self, action_space, default=0, lr=.5, gamma=.99, eps=1.):
-        super().__init__(action_space, default, lr, gamma, eps)
+    def __init__(self, action_space):
+        super().__init__(action_space)
         self.next_action = None
     
     def _updateQ(self, state, action, state2, reward, done):
@@ -95,14 +103,14 @@ class SarsaAgent(QLearningAgent):
 
 
 class DynaQAgent(QLearningAgent):
-    def __init__(self, action_space, state_space, lr_R, lr_P, k, default=0, lr=.5, gamma=.99, eps=1.):
-        super().__init__(action_space, default, lr, gamma, eps)
+    def __init__(self, action_space, state_space, lr_R, lr_P, k):
+        super().__init__(action_space)
         self.state_space = state_space
         self.lr_R = lr_R
         self.lr_P = lr_P
         self.R_hat = {}
         self.P_hat = {}
-        self.k = k
+        self.k = min(k, len(self.state_space) * len(self.action_space))
     
     def _updateMDP(self, state, action, state2, reward):
         val_R = self.R_hat.get((state, action, state2), self.default)
@@ -137,4 +145,8 @@ class DynaQAgent(QLearningAgent):
     
     def get_result(self, state, reward, done):
         self._updateMDP(self.last_state, self.last_action, state, reward)
+
+        self.lr_R *= self.lr_decay
+        self.lr_P *= self.lr_decay
+        
         super().get_result(state, reward, done)

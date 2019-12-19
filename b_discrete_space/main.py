@@ -1,9 +1,7 @@
 import gym
-from gym import wrappers
 from agentKnownMDP import ValueIterationAgent, PolicyIterationAgent, RandomAgent
 from qlearning import SarsaAgent, QLearningAgent, DynaQAgent
 import matplotlib
-
 matplotlib.use("TkAgg")
 # noinspection PyUnresolvedReferences
 import gridworld  # import non utilisé ensuite mais nécessaire
@@ -97,30 +95,27 @@ def _main_demo(plan_id=0):
     action_space = list(mdp[state].keys())
     
     agent = QLearningAgent(action_space)
-    name = "QLearning"
     
     # env.render()  # permet de visualiser la grille du jeu
     env.render(mode="human")  #visualisation sur la console
     
     # Faire un fichier de log sur plusieurs scenarios
-    outdir = 'gridworld-v0-{}/{}-results'.format(plan_id, name)
-    envm = wrappers.Monitor(env, directory=outdir, force=True, video_callable=False)
     episode_count = 1000
     FPS = 1e-6  # ~temps de pause entre deux affichages
     
     all_rsums = []
     
     for i in range(episode_count):
-        obs = env.state2str(envm.reset())
+        obs = env.state2str(env.reset())
         agent.reset(obs)
-        env.verbose = (i % 100 == 0 and i > 0)  # afficher 1 episode sur 100
+        env.verbose = (i % 10 == 0 and i > 0)  # afficher 1 episode sur 10
         if env.verbose:
             env.render(FPS)
         j = 0
         rsum = 0
         while True:
             action = agent.act()
-            obs, reward, done, _ = envm.step(action)
+            obs, reward, done, _ = env.step(action)
             obs = env.state2str(obs)
             agent.get_result(obs, reward, done)
             rsum += reward
@@ -174,7 +169,7 @@ def get_learning_curve(env, agent, name, evaluator, n_iter):
     
     w = 10  # moving average window width
     all_actions = np.convolve(all_actions, np.ones(w), 'valid') / w
-    all_policy_values = np.convolve(all_policy_values, np.ones(w), 'valid') / w
+    # all_policy_values = np.convolve(all_policy_values, np.ones(w), 'valid') / w
     
     return all_policy_values, np.cumsum(all_rewards), all_actions
 
@@ -187,25 +182,39 @@ def _main_learning_curve(plan_ids, n_iter):
         non_terminal_states = mdp.keys()
         state, transitions = next(iter(mdp.items()))
         action_space = list(mdp[state].keys())
-        agents = [
-            ("Random", RandomAgent(env.action_space)),
-            ("QLearning", QLearningAgent(action_space)),
-            ("Sarsa", SarsaAgent(action_space)),
-            ("Dyna-Q", DynaQAgent(action_space, non_terminal_states, lr_R=0.5, lr_P=0.5, k=5))
-        ]
         
         evaluator = PolicyIterationAgent(mdp.keys(), env.action_space, mdp)
         evaluator.compute_best_policy()
         
-        res = [(name, get_learning_curve(env, agent, name=name, evaluator=evaluator, n_iter=n_iter))
-               for name, agent in agents]
+        agents = [
+            ("Optimal", "black", evaluator),
+            ("Random", "gray", RandomAgent(env.action_space)),
+            ("QLearning", "red", QLearningAgent(action_space)),
+            ("Sarsa", "blue", SarsaAgent(action_space)),
+            ("Dyna-Q", "green", DynaQAgent(action_space, non_terminal_states, lr_R=0.5, lr_P=0.5, k=5))
+        ]
         
+        
+        res = [(name, color, get_learning_curve(env, agent, name=name, evaluator=evaluator, n_iter=n_iter))
+               for name, color, agent in agents]
+
         plt.suptitle("map " + str(plan_id), fontsize=16)
         plt.title("Policy loss")
-        for name, (policy_values, cum_reward, action_count) in res: 
-            plt.plot(policy_values, label=name)
-            # plt.plot(cum_reward, label=name)
-            # plt.plot(action_count, label=name)
+        for name, color, (policy_values, cum_reward, action_count) in res:
+            if name == "Optimal":
+                plt.plot(policy_values, "--", label=name, color=color)
+            else:
+                plt.plot(policy_values, label=name, color=color)
+        plt.legend()
+        
+        plt.figure()
+        plt.suptitle("map " + str(plan_id), fontsize=16)
+        plt.title("Cumulated reward")
+        for name, color, (policy_values, cum_reward, action_count) in res:
+            if name == "Optimal":
+                plt.plot(cum_reward, "--", label=name, color=color)
+            else:
+                plt.plot(cum_reward, label=name, color=color)
         plt.legend()
         plt.show()
 
@@ -218,10 +227,10 @@ def main():
     # _main_perf(available_envs)
     
     # plot les learning curves de DQN, Sarsa et DynaQ
-    _main_learning_curve(available_envs, n_iter=100)
+    _main_learning_curve(available_envs[:1], n_iter=1000)
     
     # montre un agent jouer
-    # _main_demo()
+    _main_demo()
 
 
 main()

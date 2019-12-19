@@ -19,6 +19,7 @@ class RandomAgent:
     def get_policy(self, states):
         return {s: self.action_space.sample() for s in states}
 
+
 class PolicyIterationAgent:
     def __init__(self, state_space, action_space, p, gamma=.99):
         self.policy = None
@@ -123,6 +124,9 @@ class PolicyIterationAgent:
         assert np.all(d > -1e-3)
         
         return np.sum(d)
+    
+    def get_policy(self, _states):
+        return self.policy
 
 
 class ValueIterationAgent:
