@@ -50,17 +50,8 @@ class Anim:
         for action in range(len(self.action_q)-1):
             self.action_q[action].set_data(x, action_q[action])        
         
-        # affichera le plot sans bloquer l'entraînemnt pendant env.render()
-        plt.pause(.1) #TODO comprendre comment ça marche
-    
-    """
-    import multiprocessing
-    pb serveur X
-    def show(self):
-        multiprocessing.Process(target=plt.show).start()
-    """
-    def write_anim(self, path):
-        pass #todo
+        # affichera le plot sans bloquer l'entraînemnt pendant env.render() via plt.ion()
+        plt.pause(.1) #
 
 
 class NN_Q(nn.Module):
