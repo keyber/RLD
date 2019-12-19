@@ -1,9 +1,6 @@
 import matplotlib
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import gym
-from gym import wrappers
-import numpy as np
 from A2C import *
 from torch import nn
 from time import time, sleep
@@ -18,7 +15,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-def loop(envm, agent, writer, episode_count=1000, render_period=10, render_sleep=.1, verbose=0):
+def loop(env, agent, writer, episode_count=1000, render_period=10, render_sleep=.1, verbose=0):
     episode_count = episode_count
     t0 = time()
     space_bounds = np.array([[np.inf] * agent.state_space, [-np.inf] * agent.state_space]).T
@@ -30,10 +27,10 @@ def loop(envm, agent, writer, episode_count=1000, render_period=10, render_sleep
         print("debug trajectories")
         for a in range(agent.action_space):
             l = []
-            envm.reset()
+            env.reset()
             done = False
             while not done:
-                obs, _, done, _ = envm.step(a)
+                obs, _, done, _ = env.step(a)
                 l.append(obs)
             debug_trajectories.append(l)
             print("action", a, "trajectory length", len(l))
@@ -43,27 +40,27 @@ def loop(envm, agent, writer, episode_count=1000, render_period=10, render_sleep
         print()
     
     for i in range(episode_count):
-        obs = envm.reset()
+        obs = env.reset()
         agent.reset(obs)
         
-        envm.verbose = (i % render_period == 0 and i > 0)  # affiche 1 episode sur 100
-        if envm.verbose:
+        env.verbose = (i % render_period == 0 and i > 0)  # affiche 1 episode sur 100
+        if env.verbose:
             print(agent.action_count)
-            envm.render()
+            env.render()
         
         rsum, j = 0, 0
         while True:
             j += 1
             action = agent.act()
-            obs, reward, done, _ = envm.step(action)
+            obs, reward, done, _ = env.step(action)
             space_bounds[:, 0] = np.minimum(space_bounds[:, 0], obs)
             space_bounds[:, 1] = np.maximum(space_bounds[:, 1], obs)
             agent.get_result(obs, reward, done)
             
             rsum += reward
-            if envm.verbose:
+            if env.verbose:
                 # print(state_score.item(), actions_scores.data.detach().numpy())
-                envm.render()
+                env.render()
                 sleep(render_sleep)
             if done:
                 break
@@ -74,7 +71,7 @@ def loop(envm, agent, writer, episode_count=1000, render_period=10, render_sleep
         if verbose:
             print(i, rsum)
         
-        if envm.verbose:
+        if env.verbose:
             print(i, "rsum %.2f" % rsum, "mean %.2f"%np.mean(l_rsum), "time", time() - t0, "\n\n")
             t0 = time()
             l_rsum, l_action_count = [], []
@@ -82,14 +79,12 @@ def loop(envm, agent, writer, episode_count=1000, render_period=10, render_sleep
 
 def main_cartPole():
     env = gym.make('CartPole-v1')
-    outdir = 'cartpole/A2C'
-    envm = wrappers.Monitor(env, directory=outdir, force=True, video_callable=False)
     writer = SummaryWriter()
     
     s = random.randint(0, 2**32)
     torch.manual_seed(s)
     np.random.seed(s)
-    envm.seed(s)
+    env.seed(s)
     print("seed:", s)
     
     sizeIn = env.observation_space.shape[0]     #4  = len(phi(x)) #cart_pos, cart_spe, pole_pos, pole_spe
@@ -101,9 +96,9 @@ def main_cartPole():
     agent = BatchA2C_Agent(t_max, sizeOut, sizeIn, Q, V,
                            writer=writer, verbose=V_BENCH + V_PLOT + V_GRAD)
     
-    loop(envm, agent, writer, episode_count=1001, render_sleep=0., verbose=3)
+    loop(env, agent, writer, episode_count=1001, render_sleep=0., verbose=3)
     
-    envm.close()
+    env.close()
 
 
 if __name__ == '__main__':
