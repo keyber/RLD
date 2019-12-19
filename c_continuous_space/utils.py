@@ -26,8 +26,6 @@ class Anim:
         plt.ylim(0, 1)
         self.action_q = [plt.plot([], [], '.', color="black")[0] for _action in range(action_space)]
         
-        self._print_process = None
-        
 
     def log(self, trajectories_dict, V, Q):
         def cat(x_, y_, axis=0):
@@ -53,23 +51,16 @@ class Anim:
             self.action_q[action].set_data(x, action_q[action])        
         
         # affichera le plot sans bloquer l'entraînemnt pendant env.render()
-        plt.pause(.1)
+        plt.pause(.1) #TODO comprendre comment ça marche
     
     """
     import multiprocessing
     pb serveur X
-    def show(self, non_blocking=True):
-        if non_blocking:
-            if self._print_process is not None:
-                self._print_process.terminate()
-            
-            self._print_process = multiprocessing.Process(target=plt.show)
-            self._print_process.start()
-        else:
-            plt.show()
+    def show(self):
+        multiprocessing.Process(target=plt.show).start()
     """
     def write_anim(self, path):
-        pass
+        pass #todo
 
 
 class NN_Q(nn.Module):
